@@ -1,0 +1,16 @@
+{
+  "name": "tiktok-auto-server",
+  "version": "1.0.0",
+  "description": "TikTok Live AI Manager Server",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "puppeteer": "^21.0.0",
+    "express": "^4.18.2",
+    "axios": "^1.5.0",
+    "dotenv": "^16.3.1"
+  }
+}
