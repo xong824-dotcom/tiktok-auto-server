@@ -51,6 +51,7 @@ async function launchBot() {
             const closeBtns = Array.from(document.querySelectorAll('button')).filter(b => b.innerText.includes('닫기') || b.innerText.includes('Close'));
             closeBtns.forEach(b => b.click());
         });
+        
     } catch (e) {}
 
     // 유저스크립트 로드 및 주입
