@@ -14,7 +14,7 @@
     /* ================================================================
        0. 상수 및 설정
     ================================================================ */
-    const GEMINI_API_KEY = "AIzaSyDA3O_nTPtrdu2KMEImkA-oFVF32XcNYFM";
+    const GEMINI_API_KEY = "AIzaSyBt5xlGVHQoWwkS3Oswk5-4qja-BzQIm1o";
     const FB_URL    = "https://myflexhelper-121f0-default-rtdb.firebaseio.com";
     const CH        = "tiktok_cha_aming";
     
