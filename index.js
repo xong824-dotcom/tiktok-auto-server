@@ -69,7 +69,10 @@ TARGET_CHANNELS.forEach(channel => {
 app.get('/', (req, res) => {
       res.send(`TikTok AI Bot is running for: ${TARGET_CHANNELS.join(', ')}`);
 });
+app.get('/health', (req, res) => {
+          res.status(200).send('OK');
 
-app.listen(PORT, () => {
+});
+app.listen(PORT, '0.0.0.0',() => {
       console.log(`Server is running on port ${PORT}`);
 });
