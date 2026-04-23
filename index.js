@@ -6,84 +6,70 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const TIKTOK_URL = 'https://www.tiktok.com/@cha_aming/live';
 
-let browser;
-let page;
+// // Support multiple channels via TARGET_CHANNELS environment variable (comma-separated)
+const TARGET_CHANNELS = process.env.TARGET_CHANNELS 
+  ? process.env.TARGET_CHANNELS.split(',').map(ch => ch.trim()) 
+      : ['cha_aming'];
 
-async function launchBot() {
-    console.log('🚀 TikTok Bot 시작 중...');
-    
-    browser = await puppeteer.launch({
-        headless: "new",
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-blink-features=AutomationControlled'
-        ]
-    });
+console.log(`Monitoring channels: ${TARGET_CHANNELS.join(', ')}`);
 
-    page = await browser.newPage();
-    
-    // User-Agent 설정 (봇 감지 회피)
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36');
+async function launchBot(channelName) {
+      const TIKTOK_URL = `https://www.tiktok.com/@${channelName}/live`;
+      console.log(`[${channelName}] Starting TikTok Bot...`);
 
-    // 쿠키 주입 (환경변수 TIKTOK_COOKIES 사용)
-    if (process.env.TIKTOK_COOKIES) {
-        try {
-            const cookies = JSON.parse(process.env.TIKTOK_COOKIES);
-            await page.setCookie(...cookies);
-            console.log('✅ 쿠키 주입 완료');
-        } catch (e) {
-            console.error('❌ 쿠키 주입 실패:', e.message);
-        }
-    } else {
-        console.warn('⚠️ TIKTOK_COOKIES 환경변수가 없습니다. 로그인 없이 시작합니다.');
-    }
+  const browser = await puppeteer.launch({
+          headless: "new",
+          args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-blink-features=AutomationControlled'
+                  ]
+  });
 
-    await page.goto(TIKTOK_URL, { waitUntil: 'networkidle2', timeout: 60000 });
-    console.log('✅ 페이지 로드 완료');
+  const page = await browser.newPage();
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36');
 
-    // 팝업 닫기 시도
-    try {
-        await page.evaluate(() => {
-            const closeBtns = Array.from(document.querySelectorAll('button')).filter(b => b.innerText.includes('닫기') || b.innerText.includes('Close'));
-            closeBtns.forEach(b => b.click());
-        });
-        
-    } catch (e) {}
+  if (process.env.TIKTOK_COOKIES) {
+          try {
+                    const cookies = JSON.parse(process.env.TIKTOK_COOKIES);
+                    await page.setCookie(...cookies);
+                    console.log(`[${channelName}] Cookies injected`);
+          } catch (err) {
+                    console.error(`[${channelName}] Cookie injection failed:`, err.message);
+          }
+  }
 
-    // 유저스크립트 로드 및 주입
-    const scriptPath = path.join(__dirname, 'tiktok_ai_manager.user.js');
-    if (fs.existsSync(scriptPath)) {
-        let script = fs.readFileSync(scriptPath, 'utf8');
-        // 환경변수 반영 (API KEY 등)
-        if (process.env.GEMINI_API_KEY) {
-            script = script.replace(/const GEMINI_API_KEY\s*=\s*["'][^"']*["']/, `const GEMINI_API_KEY = "${process.env.GEMINI_API_KEY}"`);
-        }
-        
-        await page.evaluate(script);
-        console.log('✅ AI 매니저 스크립트 주입 완료');
-    }
+  try {
+          console.log(`[${channelName}] Navigating to: ${TIKTOK_URL}`);
+          await page.goto(TIKTOK_URL, { waitUntil: 'networkidle2', timeout: 60000 });
+          console.log(`[${channelName}] Connection successful!`);
 
-    // 페이지 오류 시 재시작 로직
-    page.on('error', err => {
-        console.error('❌ 페이지 오류:', err);
-        process.exit(1);
-    });
+        page.on('console', msg => console.log(`[${channelName} Browser]`, msg.text()));
+
+        const scriptPath = path.join(__dirname, 'tiktok_ai_manager.user.js');
+          if (fs.existsSync(scriptPath)) {
+                    const scriptContent = fs.readFileSync(scriptPath, 'utf8');
+                    await page.addScriptTag({ content: scriptContent });
+                    console.log(`[${channelName}] AI Manager script injected`);
+          }
+
+  } catch (err) {
+          console.error(`[${channelName}] Error:`, err.message);
+          await browser.close();
+          setTimeout(() => launchBot(channelName), 30000);
+  }
 }
 
-// 헬스체크 엔드포인트
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok', time: new Date().toISOString() });
+TARGET_CHANNELS.forEach(channel => {
+      launchBot(channel).catch(err => console.error(`[${channel}] Init failed:`, err));
 });
 
-app.listen(PORT, async () => {
-    console.log(`📡 서버 대기 중 (Port: ${PORT})`);
-    try {
-        await launchBot();
-    } catch (e) {
-        console.error('❌ 봇 실행 실패:', e);
-    }
+app.get('/', (req, res) => {
+      res.send(`TikTok AI Bot is running for: ${TARGET_CHANNELS.join(', ')}`);
+});
+
+app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
 });
